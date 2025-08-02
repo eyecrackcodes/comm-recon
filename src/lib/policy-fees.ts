@@ -1,4 +1,4 @@
-import { Policy } from "./commission-processing";
+import { Policy } from "./enhanced-commission-processing";
 
 interface PolicyFeeRule {
   carrier: string;
