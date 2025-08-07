@@ -172,8 +172,8 @@ export function PlacementControls({
               Policies are included if they are <strong>Inforce</strong> or{" "}
               <strong>TERM Inforce</strong> with{" "}
               <strong>no Agent Paid Date or Agent Chargeback Date</strong> and
-              have an <strong>Effective Date or Submitted Date</strong> within
-              the placement period.
+              have an <strong>Effective Date</strong> within the placement
+              period.
             </p>
           </div>
         </div>
