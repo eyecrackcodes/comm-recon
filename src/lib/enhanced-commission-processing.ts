@@ -221,17 +221,17 @@ export function processEnhancedCommissionData(
     "Withdrawn",
   ];
 
-  // Step 1: Date filtering - SIMPLIFIED based on business requirements
+  // Step 1: Date filtering - use Statement Date for cycle alignment (Effective Date ignored)
   const filteredByDate = policies.filter((row) => {
-    const effectiveDateStr = row["Effective Date"];
-    const effectiveDate = effectiveDateStr ? new Date(effectiveDateStr) : null;
+    const statementDateStr = row["Statement Date"];
+    const statementDate = statementDateStr ? new Date(statementDateStr) : null;
 
-    // ONLY include policies with Effective Date within the placement period
-    // This is for positive commission activity during the cycle
+    // Include policies with Statement Date within the placement period
+    // This represents positive commission activity during the cycle
     const inPlacementPeriod =
-      effectiveDate &&
-      effectiveDate >= placementStartDate &&
-      effectiveDate <= placementEndDate;
+      statementDate &&
+      statementDate >= placementStartDate &&
+      statementDate <= placementEndDate;
 
     // Include policies within placement period
     if (inPlacementPeriod) {
@@ -460,8 +460,27 @@ export function processEnhancedCommissionData(
       commissionAfterReconciliation = targetPremium;
     }
 
+    // Compute a friendly client name if not present
+    const existingClient = (row as any)["Client"];
+    const clientName = existingClient
+      ? existingClient
+      : ((row as any)["Insured"] ||
+          (row as any)["Applicant"] ||
+          (row as any)["Applicant Name"] ||
+          (
+            (row as any)["First Name"] && (row as any)["Last Name"]
+              ? `${(row as any)["First Name"]} ${(row as any)["Last Name"]}`
+              : undefined
+          ) ||
+          (row as any)["Owner"]);
+
     return {
       ...row,
+      Client: clientName || (row as any)["Agent"],
+      "% Due": "", // Placeholder for future percentage logic
+      "Comp Due": "", // Placeholder for computed compensation due
+      "Policy #": (row as any)["Policy"],
+      "Commissionable Annual Premium": targetPremium,
       "Policy Fee": policyFee,
       "Target Premium": targetPremium,
       "Commission After Reconciliation": commissionAfterReconciliation,
