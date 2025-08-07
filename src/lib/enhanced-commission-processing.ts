@@ -210,16 +210,8 @@ export function processEnhancedCommissionData(
     placementEndDate = cycleInfo.placementEndDate;
   }
 
-  // Define chargeback triggers
-  const chargebackTriggers = [
-    "FEX Cancelled",
-    "FEX Declined",
-    "FEX Terminated",
-    "FEX Not Taken",
-    "IP Return",
-    "Lapsed",
-    "Withdrawn",
-  ];
+  // Define chargeback triggers (temporarily restricted to FEX Not Taken only)
+  const chargebackTriggers = ["FEX Not Taken"];
 
   // Step 1: Date filtering - use Statement Date for cycle alignment (Effective Date ignored)
   const filteredByDate = policies.filter((row) => {
@@ -239,7 +231,7 @@ export function processEnhancedCommissionData(
     }
 
     // Also include policies that are potential chargebacks from previous periods
-    // Chargebacks are based on Agent Paid Date + 30 days, not placement period
+    // Chargebacks: Agent Paid Date in window, no Agent Chargeback Date, and Policy Status includes FEX Not Taken
     if (chargebackConfig.enabled) {
       const agentPaidDateStr = row["Agent Paid Date"];
       const agentChargebackDateStr = row["Agent Chargeback Date"];
@@ -255,16 +247,9 @@ export function processEnhancedCommissionData(
         (!agentChargebackDateStr || agentChargebackDateStr.trim() === "")
       ) {
         const agentPaidDate = new Date(agentPaidDateStr);
-        const badStatuses = [
-          "lapsed",
-          "fex terminated",
-          "ip return",
-          "fex not taken",
-          "withdrawn",
-        ];
-        const hasBadStatus = badStatuses.some((status) =>
-          policyStatus.toLowerCase().includes(status)
-        );
+        const hasBadStatus = policyStatus
+          .toLowerCase()
+          .includes("fex not taken");
 
         if (hasBadStatus) {
           // Check if Agent Paid Date is within the configured chargeback lookback period
@@ -281,7 +266,8 @@ export function processEnhancedCommissionData(
               (paymentDate.getTime() - agentPaidDate.getTime()) /
               (1000 * 3600 * 24);
             withinChargebackWindow =
-              daysSincePaid >= 0 && daysSincePaid <= chargebackConfig.daysLookback;
+              daysSincePaid >= 0 &&
+              daysSincePaid <= chargebackConfig.daysLookback;
           }
 
           if (withinChargebackWindow) {
@@ -304,12 +290,7 @@ export function processEnhancedCommissionData(
     // For pending commission payments
     const isPendingCommission =
       (!agentPaidDate || agentPaidDate.trim() === "") &&
-      (policyStatus === "inforce" ||
-        policyStatus === "term inforce" ||
-        policyStatus === "fex inforce" ||
-        policyStatus === "fex awaiting funds future month" ||
-        policyStatus === "fex awaiting carrier review" ||
-        policyStatus === "pending decision");
+      (policyStatus === "fex inforce" || policyStatus === "term inforce");
 
     if (isPendingCommission) {
       return true;
@@ -411,11 +392,9 @@ export function processEnhancedCommissionData(
       const contractStatus = row["Contract Status"] || "";
       const policyStatus = row["Policy Status"] || "";
 
-      const hasChargebackTrigger = chargebackTriggers.some(
-        (trigger) =>
-          contractStatus.toLowerCase().includes(trigger.toLowerCase()) ||
-          policyStatus.toLowerCase().includes(trigger.toLowerCase())
-      );
+      const hasChargebackTrigger = policyStatus
+        .toLowerCase()
+        .includes("fex not taken");
 
       const agentPaidDateStr = row["Agent Paid Date"];
       const agentChargebackDateStr = row["Agent Chargeback Date"];
@@ -464,15 +443,13 @@ export function processEnhancedCommissionData(
     const existingClient = (row as any)["Client"];
     const clientName = existingClient
       ? existingClient
-      : ((row as any)["Insured"] ||
-          (row as any)["Applicant"] ||
-          (row as any)["Applicant Name"] ||
-          (
-            (row as any)["First Name"] && (row as any)["Last Name"]
-              ? `${(row as any)["First Name"]} ${(row as any)["Last Name"]}`
-              : undefined
-          ) ||
-          (row as any)["Owner"]);
+      : (row as any)["Insured"] ||
+        (row as any)["Applicant"] ||
+        (row as any)["Applicant Name"] ||
+        ((row as any)["First Name"] && (row as any)["Last Name"]
+          ? `${(row as any)["First Name"]} ${(row as any)["Last Name"]}`
+          : undefined) ||
+        (row as any)["Owner"];
 
     return {
       ...row,
